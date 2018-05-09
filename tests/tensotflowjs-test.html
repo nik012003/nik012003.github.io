@@ -1,0 +1,171 @@
+<html>
+  <head>
+    <style>
+    @media only screen and (max-width: 600px) {
+      .footer-text, .dg {
+        display: none;
+      }
+    }
+    </style>
+    <!-- Load TensorFlow.js -->
+    <script src="https://unpkg.com/@tensorflow/tfjs"></script>
+    <!-- Load Posenet -->
+    <script src="https://unpkg.com/@tensorflow-models/posenet"></script>
+ </head>
+
+  <body>
+    <div>
+      <button type="button" onclick="Start();">Start</button>
+      <h1 id="distance"></h>
+    </div>
+    <div id='main' style='display:none'>
+        <video id="video" playsinline style=" -moz-transform: scaleX(-1);-o-transform: scaleX(-1);-webkit-transform: scaleX(-1);transform: scaleX(-1);display: none;">
+        </video>
+    </div>
+    <canvas id="output" />
+  </body>
+  <!-- Place your code in the script tag below. You can also use an external .js file -->
+  <script>
+  function Start(){
+      loadVideo();
+      detectPoseInRealTime();
+  }
+  function toTuple({ y, x }) {
+  return [y, x];
+}
+  function drawKeypoints(keypoints, minConfidence, ctx, scale = 1) {
+    for (let i = 0; i < keypoints.length; i++) {
+      const keypoint = keypoints[i];
+
+      if (keypoint.score < minConfidence) {
+        continue;
+      }
+
+      const { y, x } = keypoint.position;
+      ctx.beginPath();
+      ctx.arc(x * scale, y * scale, 3, 0, 2 * Math.PI);
+      ctx.fillStyle = "#FF0000";
+      ctx.fill();
+    }
+  }
+  function drawSegment([ay, ax], [by, bx], color, scale, ctx) {
+  ctx.beginPath();
+  ctx.moveTo(ax * scale, ay * scale);
+  ctx.lineTo(bx * scale, by * scale);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = "#FF0000";
+  ctx.stroke();
+  }
+  function drawSkeleton(keypoints, minConfidence, ctx, scale = 1) {
+    const adjacentKeyPoints = posenet.getAdjacentKeyPoints(
+      keypoints, minConfidence);
+
+    adjacentKeyPoints.forEach((keypoints) => {
+      drawSegment(toTuple(keypoints[0].position),
+        toTuple(keypoints[1].position), "#FF0000", scale, ctx);
+    });
+  }
+  const video = document.getElementById('video');
+  function isAndroid() {
+    return /Android/i.test(navigator.userAgent);
+  }
+
+  function isiOS() {
+    return /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  }
+
+  function isMobile() {
+    return isAndroid() || isiOS();
+  }
+  maxVideoSize = 513
+  const canvasSize = 400;
+  async function setupCamera() {
+    const video = document.getElementById('video');
+    video.width = maxVideoSize;
+    video.height = maxVideoSize;
+
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      const mobile = isMobile();
+      const stream = await navigator.mediaDevices.getUserMedia({
+        'audio': false,
+        'video': {
+          facingMode: 'user',
+          width: mobile ? undefined : maxVideoSize,
+          height: mobile ? undefined: maxVideoSize}
+      });
+      video.srcObject = stream;
+
+      return new Promise(resolve => {
+        video.onloadedmetadata = () => {
+          resolve(video);
+        };
+      });
+    } else {
+      const errorMessage = "This browser does not support video capture, or this device does not have a camera";
+      alert(errorMessage);
+      return Promise.reject(errorMessage);
+    }
+  }
+
+  async function loadVideo() {
+    const video = await setupCamera();
+    video.play();
+    return video;
+  }
+  function detectPoseInRealTime() {
+  const canvas = document.getElementById('output');
+  const ctx = canvas.getContext('2d');
+  const flipHorizontal = true; // since images are being fed from a webcam
+
+  canvas.width = canvasSize;
+  canvas.height = canvasSize;
+
+
+  async function poseDetectionFrame() {
+    // Scale an image down to a certain factor. Too large of an image will slow down
+    // the GPU
+    changeToArchitecture =  '1.01';
+    guiStatenet = await posenet.load(Number(changeToArchitecture));
+    imageScaleFactor = 0.3;
+    outputStride = 16;
+    minPoseConfidence =  0.1;
+    minPartConfidence = 0.5;
+    showVideo = true;
+
+    let poses = [];
+    const pose = await guiStatenet.estimateSinglePose(video, imageScaleFactor, flipHorizontal, outputStride);
+      poses.push(pose);
+
+
+    ctx.clearRect(0, 0, canvasSize, canvasSize);
+
+    if (showVideo) {
+      ctx.save();
+      ctx.scale(-1, 1);
+      ctx.translate(-canvasSize, 0);
+      ctx.drawImage(video, 0, 0, canvasSize, canvasSize);
+      ctx.restore();
+    }
+
+    const scale = canvasSize / video.width;
+
+    // For each pose (i.e. person) detected in an image, loop through the poses
+    // and draw the resulting skeleton and keypoints if over certain confidence
+    // scores
+    poses.forEach(({ score, keypoints }) => {
+      if (score >= minPoseConfidence) {
+          kps = [keypoints[1],keypoints[2]]
+          document.getElementById('distance').innerHTML = Math.round(keypoints[1].position.x - keypoints[2].position.x);
+          drawKeypoints(kps, minPartConfidence, ctx, scale);
+          //drawSkeleton(keypoints, minPartConfidence, ctx, scale);
+      }
+    });
+
+    requestAnimationFrame(poseDetectionFrame);
+  }
+
+  poseDetectionFrame();
+}
+
+  </script>
+</html>
