@@ -1,10 +1,15 @@
 {{ define "main" }}
-  <h1>{{ .Title }}</h1>
-  {{ .Content }}
-  {{ range .Pages }}
-    <section>
-      <h2><a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a></h2>
-      {{ .Summary }}
-    </section>
+<h1>{{ .Title }}</h1>
+{{ .Content }}
+{{ range .Pages }}
+<section>
+  <h2><a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a></h2>
+  <p>{{ .Summary }}</p>
+  {{ with .Params.tags }}
+  <div class="tags">
+    {{ range . }}<a class="tag" href="/tags/{{ . }}">{{ . }}</a>{{ end }}
+  </div>
   {{ end }}
+</section>
+{{ end }}
 {{ end }}
